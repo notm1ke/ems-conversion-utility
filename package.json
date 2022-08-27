@@ -1,0 +1,27 @@
+{
+  "name": "ems-conversion-utility",
+  "version": "1.0.0",
+  "description": "Converts EMS events to RSS-readable XML",
+  "main": "index.ts",
+  "scripts": {
+    "start": "ts-node index"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/notm1ke/ems-conversion-utility.git"
+  },
+  "author": "Mike Medved",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/notm1ke/ems-conversion-utility/issues"
+  },
+  "homepage": "https://github.com/notm1ke/ems-conversion-utility#readme",
+  "dependencies": {
+    "axios": "^0.27.2",
+    "moment": "^2.29.4",
+    "rss-generator": "^0.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^18.7.13"
+  }
+}
