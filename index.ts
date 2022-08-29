@@ -9,7 +9,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 axios.defaults.baseURL = 'https://uconn.emscloudservice.com/platform/api/v1';
 
 let { clientId, clientSecret: secret } = env;
-let ROOM_NAME_REGEX = /^[a-zA-Z]{1,}\d{2,}[a-zA-Z]*$/;
+let ROOM_NAME_REGEX = /^[a-zA-Z]{1,}[_\s]{0,1}[a-zA-Z0-9.]*$/;
 
 (async () => {
     let authToken = await axios
@@ -96,7 +96,7 @@ let ROOM_NAME_REGEX = /^[a-zA-Z]{1,}\d{2,}[a-zA-Z]*$/;
             title: room,
             description: moment().format('MM/DD/YYYY'),
             site_url: 'https://aitstatus.uconn.edu/',
-            feed_url: `https://aittatus.uconn.edu/roomsignage/${clean}.xml`
+            feed_url: `https://aitstatus.uconn.edu/roomsignage/${clean}.xml`
         });
 
         entry
