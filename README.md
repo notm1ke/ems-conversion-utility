@@ -17,8 +17,7 @@ Now, provide the required credentials to authenticate with EMS. An example envir
 ```json
 {
     "clientId": "CLIENT_ID",
-    "clientSecret": "CLIENT_SECRET",
-    "hideElapsed": true
+    "clientSecret": "CLIENT_SECRET"
 }
 ```
 
