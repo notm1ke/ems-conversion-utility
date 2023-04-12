@@ -5,7 +5,10 @@ build/
 tmp/
 temp/
 signageData/
+signageDataAll/
 
 .DS_Store
 ._.*
 env.json
+*.test.ts
+event_types.json

@@ -17,9 +17,12 @@ Now, provide the required credentials to authenticate with EMS. An example envir
 ```json
 {
     "clientId": "CLIENT_ID",
-    "clientSecret": "CLIENT_SECRET"
+    "clientSecret": "CLIENT_SECRET",
+    "hideElapsed": true
 }
 ```
+
+Additionally, there is an option to only generate RSS feeds with currently occurring/future events, by passing `HIDE_ELAPSED` as `true` in while calling ``npm start``.
 
 ### Obtaining Credentials
 

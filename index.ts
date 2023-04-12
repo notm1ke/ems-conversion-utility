@@ -3,15 +3,16 @@ import moment from 'moment';
 import env from './env.json';
 import RSS from 'rss-generator';
 
-import { RoomMapping, RoomScheduleMap } from './types';
+import { RoomBookingMap, RoomSchedule } from './types';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 
 axios.defaults.baseURL = 'https://uconn.emscloudservice.com/platform/api/v1';
 
 let { clientId, clientSecret: secret } = env;
-let ROOM_NAME_REGEX = /^[a-zA-Z]{1,}[_\s]{0,1}[a-zA-Z0-9.]*$/;
+let { HIDE_ELAPSED } = process.env;
 
 (async () => {
+    let start = Date.now();
     let authToken = await axios
         .post('/clientauthentication', { clientId, secret })
         .then(res => res.data)
@@ -22,6 +23,8 @@ let ROOM_NAME_REGEX = /^[a-zA-Z]{1,}[_\s]{0,1}[a-zA-Z0-9.]*$/;
         console.warn('Failed to authenticate with EMS.');
         process.exit(-1);
     }
+
+	let hideElapsed = HIDE_ELAPSED === '1';
 
     axios.defaults.headers['x-ems-api-token'] = authToken;
     console.log('Authenticated with EMS.');
@@ -36,78 +39,93 @@ let ROOM_NAME_REGEX = /^[a-zA-Z]{1,}[_\s]{0,1}[a-zA-Z0-9.]*$/;
         });
 
     if (!rooms || rooms.length === 0) {
-        console.warn('Failed to fetch room mappings from EMS.');
+        console.warn('Failed to fetch rooms from EMS.');
         process.exit(-1);
     }
 
-    let mappings: RoomMapping[] = rooms
-        .filter(room => room.description.includes(' ') && ROOM_NAME_REGEX.test(room.description.replace(/\s+/g, '')))
-        .map(room => ({
-            name: room.building.code + ' ' + room.code,
-            roomId: room.id,
-            building: room.building.description,
-            buildingId: room.building.id
-        }));
-
-    console.log(`Retrieved ${mappings.length} room mappings from EMS.`);
-    
-    let i = 0;
-    let start = Date.now();
-    let schedules: RoomScheduleMap = {};
-    for (let room of mappings) {
-        let schedule = await axios
-            .get(`/bookings?roomId=${room.roomId}&pageSize=2000`)
-            .then(res => res.data)
-            .then(res => res.results)
-            .then(res => res.filter(booking => new Date(booking.eventStartTime).toDateString() === new Date().toDateString()))
-            .catch(_ => []);
-
-        console.log(`[${++i}/${mappings.length}]`, room.name, schedule.length);
-        
-        if (!schedules[room.name])
-            schedules[room.name] = [];
-
-        schedules[room.name].push({
-            name: room.name,
-            events: schedule.map(booking => ({
-                title: booking.eventName,
-                description: `${moment(booking.eventStartTime).format('h:mm A')} - ${moment(booking.eventEndTime).format('h:mm A')}`
-            }))
+    let schedules = await axios
+        .post('/bookings/actions/search?pageSize=2000', {
+            minReserveStartTime: moment().format('YYYY-MM-DD[T]00:00:00-04:00'),
+            maxReserveStartTime: moment().add(1, 'day').format('YYYY-MM-DD[T]00:00:00-04:00')
+        })
+        .then(res => res.data)
+        .then(res => res.results)
+        .catch(err => {
+            console.error('Failed to retrieve schedules:', err);
+            return null;
         });
+
+    if (!schedules || schedules.length === 0) {
+        console.warn('Failed to fetch schedules from EMS.');
+        process.exit(-1);
     }
 
-    console.log(`Retrieved ${Object.keys(schedules).length} room schedules from EMS in ${(Date.now() - start).toFixed(2)}ms.`);
+    let mappings: RoomBookingMap = schedules.reduce((acc, cur) => {
+        let roomName = cur.room.description.replace(/\s/g, '_');
+        if (!acc[roomName]) acc[roomName] = [];
+        acc[roomName].push(cur);
+        return acc;
+    }, {});
+
+    if (hideElapsed) {
+        console.log('Hiding elapsed events..');
+        let now = moment();
+        for (let room of Object.keys(mappings)) {
+            mappings[room] = mappings[room].filter(booking => {
+                let start = moment(booking.eventStartTime);
+                let end = moment(booking.eventEndTime);
+                return now.isBetween(start, end) || now.isBefore(start);
+            });
+        }
+    }
+
+    // Inject empty rooms so that an RSS feed still exists, despite no events.
+    rooms.forEach(room => {
+        let roomName = room.description.replace(/\s/g, '_');
+        if (!mappings[roomName]) mappings[roomName] = [];
+    });
+
+    console.log(`Retrieved ${Object.keys(mappings).length} room mappings from EMS.`);
+    
+    let payloads: RoomSchedule[] = Object
+        .keys(mappings)
+        .map(room => {
+            let schedule = mappings[room];
+            return {
+                name: room,
+                events: schedule.map(booking => ({
+                    title: booking.eventName,
+                    description: `${moment(booking.eventStartTime).format('h:mm A')} - ${moment(booking.eventEndTime).format('h:mm A')}`
+                }))
+            };
+        });
+
     console.log('Starting export, this may take a moment..');
 
-    let outDir = './signageData';
+    let outDir = `./signageData${!hideElapsed ? 'All' : ''}`;
     if (existsSync(outDir)) {
         rmSync(outDir, { recursive: true });
-        console.log('Signage Data export directory cleaned.');
+        console.log('Signage data export directory cleaned.');
     }
     
     mkdirSync(outDir);
     
-    i = 0;
-    start = Date.now();
-
-    for (let [room, entry] of Object.entries(schedules)) {
-        let clean = room.replace(/\s/g, '_');
+    for (let entry of Object.values(payloads)) {
+        let clean = entry.name.replace(/\s/g, '_').replace(/\//g, '_');
         let feed = new RSS({
-            title: room,
+            title: entry.name,
             description: moment().format('MM/DD/YYYY'),
             site_url: 'https://aitstatus.uconn.edu/',
             feed_url: `https://aitstatus.uconn.edu/roomsignage/${clean}.xml`
         });
 
         entry
-            .map(ent => ent.events)
-            .flat()
+            .events
             .forEach(({ title, description }) => feed.item({
                 title, description
             }));
 
-        writeFileSync(`./signageData/${clean}.xml`, feed.xml({ indent: true }));
-        console.log(`[${++i}/${Object.keys(schedules).length}]`, room, entry.length);
+        writeFileSync(`./signageData${!hideElapsed ? 'All' : ''}/${clean}.xml`, feed.xml({ indent: true }));
     }
 
     console.log(`Export took ${(Date.now() - start).toFixed(2)}ms.`);
