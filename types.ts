@@ -157,3 +157,9 @@ export type RoomBookingStatus = {
     id: number;
     statusType: string;
 }
+
+export type TrackedResource = {
+    name: string;
+    slug: string;
+    items: number;
+}

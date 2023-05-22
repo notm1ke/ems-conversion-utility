@@ -1,6 +1,6 @@
 # EMS Conversion Utility
 
-![version badge](https://img.shields.io/badge/version-1.0.0-2573bc)
+![version badge](https://img.shields.io/badge/version-2.0.0-2573bc)
 
 This repository contains a tool used to generate RSS feeds from the [UConn EMS Cloud instance](https://uconn.emscloudservice.com). This tool is used internally to power the Carousel room signage used throughout the university.
 
