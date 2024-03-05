@@ -17,7 +17,7 @@
   },
   "homepage": "https://github.com/notm1ke/ems-conversion-utility#readme",
   "dependencies": {
-    "axios": "^0.27.2",
+    "axios": "^1.6.7",
     "moment": "^2.29.4",
     "rss-generator": "^0.0.3"
   },
