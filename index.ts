@@ -5,7 +5,14 @@ import RSS from 'rss-generator';
 
 import { STANDARD_TIME_FORMAT, paginate } from './util';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
-import { ApiTimeSelectorOpts, RoomBooking, RoomBookingMap, RoomSchedule } from './types';
+
+import {
+    ApiTimeSelectorOpts,
+    RoomBooking,
+    RoomBookingMap,
+    RoomSchedule,
+    TrackedResource
+} from './types';
 
 axios.defaults.baseURL = 'https://uconn.emscloudservice.com/platform/api/v1';
 
@@ -113,6 +120,14 @@ const { HIDE_ELAPSED } = process.env;
 
         writeFileSync(`./signageData${!hideElapsed ? 'All' : ''}/${clean}.xml`, feed.xml({ indent: true }));
     }
+
+    let meta: TrackedResource[] = payloads.map(payload => ({
+        name: payload.name,
+        slug: payload.name.replace(/\s/g, '_').replace(/\//g, '_'),
+        items: payload.events.length
+    }));
+
+    writeFileSync(`./signageData${!hideElapsed ? 'All' : ''}/_meta.json`, JSON.stringify(meta));
 
     console.log(`Export took ${(Date.now() - start).toFixed(2)}ms.`);
 })();

@@ -1,6 +1,6 @@
 {
   "name": "ems-conversion-utility",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Converts EMS events to RSS-readable XML",
   "main": "index.ts",
   "scripts": {
