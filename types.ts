@@ -1,3 +1,16 @@
+export type PaginatedApiResponse<T> = {
+    page: number;
+    pageCount: number;
+    pageSize: number;
+    results: T[];
+    resultsCount: number;
+}
+
+export type ApiTimeSelectorOpts = {
+    minReserveStartTime: string;
+    maxReserveStartTime: string;
+}
+
 export type RoomSchedule = {
     name: string;
     events: RoomScheduleEvent[];

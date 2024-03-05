@@ -3,13 +3,14 @@ import moment from 'moment';
 import env from './env.json';
 import RSS from 'rss-generator';
 
-import { RoomBookingMap, RoomSchedule } from './types';
+import { STANDARD_TIME_FORMAT, paginate } from './util';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
+import { ApiTimeSelectorOpts, RoomBooking, RoomBookingMap, RoomSchedule } from './types';
 
 axios.defaults.baseURL = 'https://uconn.emscloudservice.com/platform/api/v1';
 
-let { clientId, clientSecret: secret } = env;
-let { HIDE_ELAPSED } = process.env;
+const { clientId, clientSecret: secret } = env;
+const { HIDE_ELAPSED } = process.env;
 
 (async () => {
     let start = Date.now();
@@ -29,31 +30,16 @@ let { HIDE_ELAPSED } = process.env;
     axios.defaults.headers['x-ems-api-token'] = authToken;
     console.log('Authenticated with EMS.');
 
-    let rooms = await axios
-        .get('/rooms?pageSize=2000')
-        .then(res => res.data)
-        .then(res => res.results)
-        .catch(err => {
-            console.error('Failed to retrieve rooms:', err);
-            return null;
-        });
-
+    let rooms = await paginate<RoomBooking>('resolveRooms', 'GET', '/rooms?pageSize=2000');
     if (!rooms || rooms.length === 0) {
         console.warn('Failed to fetch rooms from EMS.');
         process.exit(-1);
     }
 
-    let schedules = await axios
-        .post('/bookings/actions/search?pageSize=2000', {
-            minReserveStartTime: moment().format('YYYY-MM-DD[T]00:00:00-04:00'),
-            maxReserveStartTime: moment().add(1, 'day').format('YYYY-MM-DD[T]00:00:00-04:00')
-        })
-        .then(res => res.data)
-        .then(res => res.results)
-        .catch(err => {
-            console.error('Failed to retrieve schedules:', err);
-            return null;
-        });
+    let schedules = await paginate<RoomBooking, ApiTimeSelectorOpts>('fetchSchedules', 'POST', '/bookings/actions/search?pageSize=2000', {
+        minReserveStartTime: moment().format(STANDARD_TIME_FORMAT),
+        maxReserveStartTime: moment().add(1, 'day').format(STANDARD_TIME_FORMAT)
+    });
 
     if (!schedules || schedules.length === 0) {
         console.warn('Failed to fetch schedules from EMS.');
@@ -115,8 +101,8 @@ let { HIDE_ELAPSED } = process.env;
         let feed = new RSS({
             title: entry.name,
             description: moment().format('MM/DD/YYYY'),
-            site_url: 'https://aitstatus.uconn.edu/',
-            feed_url: `https://aitstatus.uconn.edu/roomsignage/${clean}.xml`
+            site_url: 'https://rooms.internal/',
+            feed_url: `https://rooms.internal/roomSignage${!hideElapsed ? 'All' : ''}/${clean}.xml`
         });
 
         entry
